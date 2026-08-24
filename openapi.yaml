@@ -1,0 +1,171 @@
+openapi: 3.0.3
+info:
+  title: SIH26146 Bitcoin Transaction Traffic API
+  version: 1.0.0
+  description: >
+    v1 freeze stub — M1 ingest routes only; extended in T12.
+    Freeze per PROTOTYPE_DECISIONS_FINAL §2 Part11: ingest + graph + alerts + geo + mock + replay.
+servers:
+  - url: http://localhost:8000
+    description: Local FastAPI
+
+paths:
+  /api/health:
+    get:
+      summary: Health check
+      operationId: healthCheck
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+  /api/ingest:
+    post:
+      summary: Batch ingest CSV/JSON/XML → Parquet
+      operationId: ingestBatch
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: Ingest accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  job_id:
+                    type: string
+                  parquet:
+                    type: string
+                  validation:
+                    type: string
+
+  /api/ingest/batch:
+    post:
+      summary: Batch ingest folder (watch/poll)
+      operationId: ingestBatchFolder
+      responses:
+        "200":
+          description: Batch accepted
+
+  /api/ingest/status/{id}:
+    get:
+      summary: Ingest job status
+      operationId: ingestStatus
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Status
+
+  /api/validation/{file}:
+    get:
+      summary: Per-file validation report
+      operationId: validationReport
+      parameters:
+        - name: file
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: validation.json content
+
+  /api/alerts:
+    get:
+      summary: Ranked alerts (placeholder, frozen)
+      operationId: listAlerts
+      responses:
+        "200":
+          description: placeholder
+
+  /api/graph/{id}:
+    get:
+      summary: Graph subgraph for alert (placeholder)
+      operationId: getGraph
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: placeholder
+
+  /api/evidence/{id}:
+    get:
+      summary: Evidence for alert (placeholder)
+      operationId: getEvidence
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: placeholder
+
+  /api/geo/{ip}:
+    get:
+      summary: Geo lookup (placeholder)
+      operationId: getGeo
+      parameters:
+        - name: ip
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: placeholder
+
+  /api/mock/mempool:
+    get:
+      summary: WS mock mempool shape (placeholder)
+      operationId: mockMempool
+      responses:
+        "200":
+          description: placeholder
+
+  /api/replay:
+    get:
+      summary: Time-slider replay
+      operationId: replay
+      parameters:
+        - name: at
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: placeholder
+
+components:
+  schemas:
+    TransactionRecord:
+      type: object
+      description: Placeholder for Pydantic TransactionRecord — full schema in backend/ingest/models.py (T12)

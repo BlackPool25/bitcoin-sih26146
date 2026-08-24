@@ -1,0 +1,21 @@
+# Pinned from pyproject.toml — compatible with uv / pip
+# Regenerate via `uv pip compile pyproject.toml -o requirements.txt` or `uv pip freeze`
+# All versions verified to resolve in 2026 (pydantic >=2.9, polars >=1.12, fastapi >=0.110, duckdb >=1.1)
+fastapi==0.141.1
+uvicorn==0.52.4
+pydantic==2.13.4
+polars==1.43.2
+duckdb==1.5.5
+geoip2==5.3.0
+maxminddb==3.1.1
+networkx==3.6.1
+python-louvain==0.16
+ijson==3.5.1
+lxml==6.1.2
+watchdog==6.0.0
+python-magic==0.4.27  # fallback on Windows: python-magic-bin==0.4.14
+faker==40.37.0
+typer==0.27.1
+pytest==9.1.1
+ruff==0.16.4
+basedpyright==1.39.10

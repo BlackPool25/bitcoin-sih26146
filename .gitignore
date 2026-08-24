@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+*.egg-info/
+dist/
+build/
+wheels/
+
+# Data (keep structure via .gitkeep, ignore large artifacts)
+data/clean/parquet/*.parquet
+data/raw/synthetic/*.csv
+data/raw/synthetic/*.json
+data/raw/synthetic/*.xml
+data/geo/*.mmdb
+*.mmdb
+
+# Env
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+
+# Cache
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+.pyright/
+
+# Node (future M4/M5)
+node_modules/
+.codegraph
+.omo/
+.serena/

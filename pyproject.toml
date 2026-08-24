@@ -1,0 +1,95 @@
+[project]
+name = "sih26146-bitcoin-prototype"
+version = "0.1.0"
+description = "SIH26146 — AI-Powered Monitoring & Analysis of Bitcoin Transaction Traffic (NTRO) — M1 Ingest Prototype"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "SIH26146 Team" }]
+dependencies = [
+    "fastapi>=0.110",
+    "uvicorn>=0.30",
+    "pydantic>=2.9",
+    "polars>=1.12",
+    "duckdb>=1.1",
+    "geoip2>=4.8",
+    "maxminddb>=2.2",
+    "networkx>=3.3",
+    "python-louvain>=0.16",
+    "ijson>=3.3",
+    "lxml>=5.0",
+    "watchdog>=4.0",
+    "python-magic>=0.4.27",  # fallback on Windows: python-magic-bin
+    "faker>=24.0",
+    "typer>=0.12",
+    "pytest>=8.0",
+    "ruff>=0.8",
+    "basedpyright>=1.18",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.8",
+    "basedpyright>=1.18",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["backend"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = [".venv", "__pycache__", "data", "wheels", "node_modules"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "C4", "UP", "SIM", "TCH", "TID", "Q", "RUF"]
+ignore = ["D", "ANN", "S", "FIX", "TD", "ERA", "CPY", "INP"]
+fixable = ["ALL"]
+unfixable = []
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.basedpyright]
+typeCheckingMode = "strict"
+pythonVersion = "3.11"
+venvPath = "."
+venv = ".venv"
+reportMissingImports = true
+reportMissingTypeStubs = false
+reportUnknownVariableType = false
+reportUnknownMemberType = false
+reportUnknownArgumentType = false
+reportUnknownParameterType = false
+include = ["backend", "tests", "scripts"]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-ra --strict-markers --strict-config"
+markers = [
+    "slow: marks tests as slow",
+]
+
+[tool.coverage.run]
+source = ["backend"]
+branch = true
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.8",
+    "basedpyright>=1.18",
+]

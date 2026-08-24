@@ -1,0 +1,17 @@
+# CPU / offline subset — runtime only (no ruff/basedpyright/pytest for air-gapped bundle)
+# Install via `pip install --no-index --find-links wheels/ -r requirements.cpu.txt` or `uv pip sync requirements.cpu.txt`
+fastapi==0.141.1
+uvicorn==0.52.4
+pydantic==2.13.4
+polars==1.43.2
+duckdb==1.5.5
+geoip2==5.3.0
+maxminddb==3.1.1
+networkx==3.6.1
+python-louvain==0.16
+ijson==3.5.1
+lxml==6.1.2
+watchdog==6.0.0
+python-magic==0.4.27  # fallback: python-magic-bin==0.4.14
+faker==40.37.0
+typer==0.27.1
