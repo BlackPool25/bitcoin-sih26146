@@ -191,3 +191,168 @@ def test_geo_asn_strict() -> None:
 
     with pytest.raises(ValidationError):
         TransactionRecord.model_validate({**_valid_payload(), "geo_asn": "15169"})  # type: ignore[dict-item]
+
+
+# --- M1 parsers RED tests ---
+
+
+def _valid_row_dict(idx: int) -> dict[str, object]:
+    return {
+        "timestamp": f"2024-01-01T00:00:{idx:02d}Z",
+        "src_ip": "192.168.1.10",
+        "dst_ip": "10.0.0.5",
+        "src_port": 8333,
+        "dst_port": 8334,
+        "txid": "a" * 63 + str(idx % 10),
+        "input_addresses": ["1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"],
+        "output_addresses": ["1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2"],
+        "input_amounts": [0.5],
+        "output_amounts": [0.4],
+        "fee": 0.1,
+        "script_type": "P2PKH",
+        "geo_country": "US",
+        "geo_asn": 15169,
+    }
+
+
+def _row_to_csv_str(row: dict[str, object]) -> dict[str, str]:
+    import json as _json
+
+    out: dict[str, str] = {}
+    for k, v in row.items():
+        if isinstance(v, list):
+            out[k] = _json.dumps(v)
+        else:
+            out[k] = str(v)
+    return out
+
+
+def test_quarantine_streaming(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """RED: 10-row CSV with 2 bad rows -> 8 parquet rows + 2 validation entries."""
+    import csv
+    import json as _json
+
+    from backend.ingest.parsers import ingest_file
+
+    csv_path = tmp_path / "input.csv"
+    parquet_path = tmp_path / "out.parquet"
+    validation_path = tmp_path / "validation.json"
+
+    rows: list[dict[str, object]] = []
+    for i in range(10):
+        rows.append(_valid_row_dict(i))
+    # make 2 bad rows
+    rows[3] = {**rows[3], "txid": "short"}
+    rows[7] = {**rows[7], "src_port": "bad"}  # type: ignore[dict-item]
+
+    csv_rows = [_row_to_csv_str(r) for r in rows]
+    fieldnames = list(csv_rows[0].keys())
+    with open(csv_path, "w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=fieldnames)
+        w.writeheader()
+        w.writerows(csv_rows)  # type: ignore[arg-type]
+
+    result = ingest_file(str(csv_path), str(parquet_path), str(validation_path), engine="polars")
+    assert result["rows_ok"] == 8
+    assert result["rows_quarantined"] == 2
+    assert result["parquet_path"] == str(parquet_path)
+
+    # parquet has 8 rows
+    import polars as pl
+
+    df = pl.read_parquet(str(parquet_path))
+    assert df.height == 8
+
+    # validation.json has 2 entries with required keys
+    data = _json.loads(validation_path.read_text(encoding="utf-8"))
+    assert isinstance(data, list)
+    assert len(data) == 2
+    for entry in data:
+        assert set(entry.keys()) == {"file", "row", "error", "raw"}
+        assert entry["file"] == str(csv_path)
+        assert isinstance(entry["row"], int)
+        assert 1 <= entry["row"] <= 10
+        assert isinstance(entry["error"], str) and len(entry["error"]) > 0
+        assert isinstance(entry["raw"], dict)
+
+
+def test_csv_json_xml_detect(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """detect_format via extension fallback + content sniff."""
+    import json as _json
+
+    from backend.ingest.parsers import detect_format
+
+    # csv
+    csv_p = tmp_path / "a.csv"
+    csv_p.write_text("timestamp,src_ip\n2024-01-01T00:00:00Z,1.1.1.1\n", encoding="utf-8")
+    assert detect_format(str(csv_p)) == "csv"
+
+    # json array
+    json_p = tmp_path / "b.json"
+    json_p.write_text(_json.dumps([_valid_row_dict(0)]), encoding="utf-8")
+    assert detect_format(str(json_p)) == "json"
+
+    # xml
+    xml_p = tmp_path / "c.xml"
+    xml_p.write_text(
+        '<?xml version="1.0"?><records><record><txid>abc</txid></record></records>',
+        encoding="utf-8",
+    )
+    assert detect_format(str(xml_p)) == "xml"
+
+    # content sniff: file with wrong extension but json content
+    sniff_p = tmp_path / "sniff.dat"
+    sniff_p.write_text(_json.dumps([_valid_row_dict(1)]), encoding="utf-8")
+    assert detect_format(str(sniff_p)) == "json"
+
+    xml_sniff = tmp_path / "sniff2.dat"
+    xml_sniff.write_text('<?xml version="1.0"?><records></records>', encoding="utf-8")
+    assert detect_format(str(xml_sniff)) == "xml"
+
+
+def test_quarantine_streaming_json_and_xml(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """Additional streaming validation for JSON and XML paths."""
+    import json as _json
+
+    import polars as pl
+    from backend.ingest.parsers import ingest_file
+
+    # JSON case
+    json_path = tmp_path / "input.json"
+    parquet_j = tmp_path / "j.parquet"
+    val_j = tmp_path / "vj.json"
+    rows = [_valid_row_dict(i) for i in range(5)]
+    rows[2] = {**rows[2], "txid": "bad"}
+    json_path.write_text(_json.dumps(rows), encoding="utf-8")
+    res_j = ingest_file(str(json_path), str(parquet_j), str(val_j), engine="polars")
+    assert res_j["rows_ok"] == 4
+    assert res_j["rows_quarantined"] == 1
+    assert pl.read_parquet(str(parquet_j)).height == 4
+
+    # XML case
+    xml_path = tmp_path / "input.xml"
+    parquet_x = tmp_path / "x.parquet"
+    val_x = tmp_path / "vx.json"
+    # Build XML
+    import xml.etree.ElementTree as ET
+
+    root = ET.Element("records")
+    for idx in range(5):
+        r = _valid_row_dict(idx)
+        if idx == 1:
+            r = {**r, "txid": "bad"}
+        rec = ET.SubElement(root, "record")
+        for k, v in r.items():
+            import json as _js
+
+            child = ET.SubElement(rec, k)
+            if isinstance(v, list):
+                child.text = _js.dumps(v)
+            else:
+                child.text = str(v)
+    tree = ET.ElementTree(root)
+    tree.write(str(xml_path), encoding="utf-8", xml_declaration=True)
+    res_x = ingest_file(str(xml_path), str(parquet_x), str(val_x), engine="polars")
+    assert res_x["rows_ok"] == 4
+    assert res_x["rows_quarantined"] == 1
+    assert pl.read_parquet(str(parquet_x)).height == 4
