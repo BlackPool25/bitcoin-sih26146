@@ -68,7 +68,7 @@ Train `M3_GCN 38→64→32` on real graph+features (Kaggle T4 x2) to replace the
 
 ## Data Sources (notebook handles both)
 
-- **Option A (Internet ON):** `!git clone https://github.com/<you>/sih26146.git` → `data/raw/synthetic/synth_50k.csv` + `data/graph/duck.db`
+- **Option A (Internet ON):** `!git clone https://github.com/BlackPool25/bitcoin-sih26146.git` → `data/raw/synthetic/synth_50k.csv` + `data/graph/duck.db` (or push your fork and clone that)
 - **Option B (Kaggle Dataset, no Internet needed once attached):** Attach dataset containing `data/` snapshot → notebook does `!cp -r /kaggle/input/elliptic/* data/raw/elliptic/` and generic `/kaggle/input/*/data` → `./data` + `*.parquet`/`*.db` fallbacks. Works even if git clone fails.
 
 ## Verify Notebook
