@@ -339,15 +339,28 @@ def main() -> None:
         criterion = torch.nn.CrossEntropyLoss()  # type: ignore[attr-defined,reportOptionalMemberAccess]
 
         model.train()  # pyright: ignore[reportAttributeAccessIssue,reportUnknownMemberType]
-        for epoch in range(200):
+        print(f"Starting training: 200 epochs, {x.shape[0]} nodes, {x.shape[1]} feats, device={'cuda' if torch.cuda.is_available() else 'cpu'}", flush=True)  # type: ignore[no-untyped-call]
+        try:
+            from tqdm import tqdm  # type: ignore[import-untyped]
+
+            epoch_iter = tqdm(range(200), desc="Training GNN", unit="epoch", ncols=80)
+        except ImportError:
+            epoch_iter = range(200)  # type: ignore[assignment]
+        for epoch in epoch_iter:
             optimizer.zero_grad()  # pyright: ignore[reportUnknownMemberType,reportAttributeAccessIssue]
             logits = model(x, edge_index)  # pyright: ignore[reportUnknownVariableType,reportCallIssue]
             loss = criterion(logits, y)  # pyright: ignore[reportUnknownVariableType,reportCallIssue]
             loss.backward()  # pyright: ignore[reportUnknownMemberType]
             optimizer.step()  # pyright: ignore[reportUnknownMemberType]
-            if (epoch + 1) % 20 == 0:
-                logging.info("epoch %d/200 loss=%.4f", epoch + 1, float(loss.item()))  # type: ignore[no-untyped-call]
-                print(f"epoch {epoch+1}/200 loss={float(loss.item()):.4f}")  # type: ignore[no-untyped-call]
+            loss_val = float(loss.item())  # type: ignore[no-untyped-call]
+            if (epoch + 1) % 10 == 0 or epoch == 0:
+                logging.info("epoch %d/200 loss=%.4f", epoch + 1, loss_val)  # type: ignore[no-untyped-call]
+                print(f"epoch {epoch+1:3d}/200 loss={loss_val:.4f}", flush=True)  # type: ignore[no-untyped-call]
+            try:
+                if hasattr(epoch_iter, "set_postfix"):
+                    epoch_iter.set_postfix(loss=f"{loss_val:.4f}")  # type: ignore[attr-defined]
+            except Exception:
+                pass
 
         # Save bundle — required config keys
         out_path.parent.mkdir(parents=True, exist_ok=True)
