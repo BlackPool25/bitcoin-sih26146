@@ -11,6 +11,7 @@
 | Turn | Part | Task | Status | Evidence | Next |
 |------|------|------|--------|----------|------|
 | — | 3+4 | Geo enricher + multi-layer Louvain | todo | — | Start `backend/graph/geo.py` MaxMind batch |
+| 0 | 0 | Bootstrap git+pyproject+dirs+coord (Wave0) | in_progress | `pyproject.toml:geoip2` `backend/graph/__init__.py` `ruff check .` pass | Next T1 `backend/graph/schema.sql` |
 
 ## M3 — ML Core (ml/*)
 | Turn | Part | Task | Status | Evidence | Next |
