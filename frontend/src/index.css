@@ -1,0 +1,128 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  /* risk palette exposed as Tailwind colors */
+  --color-risk-critical: var(--risk-critical);
+  --color-risk-high: var(--risk-high);
+  --color-risk-medium: var(--risk-medium);
+  --color-risk-low: var(--risk-low);
+  --color-risk-info: var(--risk-info);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+
+  /* Investigator risk palette — light theme
+     critical #dc2626 red-600, high #f97316 orange-500, medium #f59e0b amber-500, low #64748b slate-500 */
+  --risk-critical: oklch(0.577 0.245 27.325); /* #dc2626 red-600 — oklch(0.55 0.22 27) spec approx */
+  --risk-high: oklch(0.705 0.187 47); /* #f97316 orange-500 — oklch(0.65 0.20 35) spec approx */
+  --risk-medium: oklch(0.769 0.169 71); /* #f59e0b amber-500 — oklch(0.75 0.15 75) spec approx */
+  --risk-low: oklch(0.554 0.046 257); /* #64748b slate-500 — corrected from greenish 145 hue to slate 257 */
+  --risk-info: oklch(0.6 0.15 230); /* sky/info */
+
+  /* chart fallbacks */
+  --chart-1: oklch(0.623 0.214 259.815);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.169 71);
+}
+
+.dark {
+  --background: oklch(0.145 0 0); /* ~ slate-950 #020617 */
+  --foreground: oklch(0.985 0 0); /* ~ slate-100 #f1f5f9 */
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+
+  /* risk palette — dark theme (lightened for contrast on dark bg) */
+  --risk-critical: oklch(0.637 0.22 27); /* #ef4444 in dark — still maps to bg-red-600 class */
+  --risk-high: oklch(0.75 0.18 47); /* brightened orange for dark */
+  --risk-medium: oklch(0.82 0.14 75); /* brightened amber for dark */
+  --risk-low: oklch(0.68 0.04 257); /* lightened slate-400-ish for dark contrast */
+  --risk-info: oklch(0.65 0.15 230);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    /* investigator dark bg is bg-background (oklch 0.145 ~ slate-950) in .dark */
+  }
+  /* a11y: visible focus ring */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+}
+
+/* prefers-reduced-motion — disable non-essential motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Ensure no horizontal scroll at 1280px: container constrains viewport */
+html {
+  scrollbar-gutter: stable;
+}

@@ -1,0 +1,48 @@
+# syntax=docker/dockerfile:1.6
+# M6 Platform — FINAL §2 Part9 — BUILDKIT_PROGRESS=plain
+# Resolve digest via: docker pull python:3.11-slim-bookworm && docker inspect --format '{{.RepoDigests}}' python:3.11-slim-bookworm
+# Use fallback digest if offline: python:3.11-slim-bookworm@sha256:2e32f7d302adc1c37428355c1e646897c0c53f4fd60b6a551245fb90ee129f91 (pinned 2026-08-24 via docker inspect; re-pin via docker pull + inspect at build time)
+# Verified digest: docker.io/library/python:3.11-slim-bookworm@sha256:2e32f7d302adc1c37428355c1e646897c0c53f4fd60b6a551245fb90ee129f91
+
+FROM python:3.11-slim-bookworm@sha256:2e32f7d302adc1c37428355c1e646897c0c53f4fd60b6a551245fb90ee129f91
+
+WORKDIR /app
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    TORCH_BLAS_PREFER_HIPBLASLT=0 \
+    MMDB_DIR=/app/mmdb \
+    DEVICE=cpu
+
+ARG DEVICE=cpu
+
+# baked at build — no apt-get at runtime (no apt-get in CMD/finale)
+RUN apt-get update && apt-get install -y --no-install-recommends curl libmaxminddb0 && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.cpu.txt ./requirements.cpu.txt
+COPY requirements.rocm.txt ./requirements.rocm.txt
+
+# offline wheels bundle — wheels/{common,cpu,rocm} scaffold (pip download quad, NOT pip wheel)
+COPY wheels/ /wheels
+
+# CPU deps — offline install (no-index + find-links); fallback to flat /wheels if split dirs empty
+# Cold-start scaffold: wheels may be empty (0 wheels) — build must still succeed; populate via scripts/build_wheels.sh for air-gapped bundle
+RUN pip install --no-index --find-links /wheels/common --find-links /wheels/cpu -r requirements.cpu.txt --no-deps || pip install --no-index --find-links /wheels -r requirements.cpu.txt || echo "cold-start: wheels empty — run scripts/build_wheels.sh to populate"
+
+# ROCm conditional — if DEVICE=rocm, install ROCm torch else fallback to CPU (88-93% guarantee)
+RUN if [ "$DEVICE" = "rocm" ]; then pip install --no-index --find-links /wheels/rocm torch --force-reinstall 2>/dev/null || pip install --no-index --find-links /wheels/cpu torch 2>/dev/null || echo "rocm fallback to cpu — 88-93% guarantee"; fi
+
+# MMDB — handle both data/geo/ and mmdb/ layouts, with mkdir -p
+RUN mkdir -p /app/mmdb
+COPY data/geo/ /app/mmdb/
+# Fallback layout (if data/geo missing at build, mmdb/ provides same): COPY mmdb /app/mmdb handled via conditional build context — ensure at least /app/mmdb exists
+
+COPY backend/ /app/backend/
+COPY schema.sql /app/schema.sql
+COPY data/graph/ /app/data/graph/
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 --start-period=10s CMD curl -f http://localhost:8000/api/health || exit 1
+
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]

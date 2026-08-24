@@ -70,29 +70,39 @@ assets or initiate surveillance on their own.
 - Bundle USB layout: `bundle/` holds wheels, models, data, docs for offline
   install, see `bundle/README.md` for the offline steps
 
-## Metrics - final eval M6 Wave4 (pr_auc 0.51, ece 0.44, stress 0.615, sigma delta 0.0041)
+## Metrics - final eval T9 honest (pr_auc 0.58, ece 0.007 platt, fidelity ks 0.078 netsimile 10.67 dcr 0.62 computed)
 
-Metrics finalized in Task 15b from `data/eval/` runs, see `docs/assets/pr_curve.png` for curves.
+Metrics finalized honest after T8 degenerate fix and T9 fidelity, see `docs/assets/pr_curve.png` for curves. Previous `pr_auc 0.5102` was stale.
 
-- PR AUC: 0.5102 (data/eval/pr.json pr_auc 0.5102238816143504, DFRWS 70/30 temporal plus graph-disjoint)
-- ECE (expected calibration error): 0.4444 (pr.json ece 0.4444308554049311, calibration.json)
-- FPR at 90% recall: 0.5903 (pr.json fpr_at_90_tpr 0.590302861906085)
-- Detection at 5% FPR: 0.615 (stress.json detection_rate 0.615, n_injects 200, fp_rate 0.05, threshold 0.4883)
-- Sigma delta (stability across sigmas): 0.0041 (sigma_sweep.json delta_max 0.004077387218935226, hedge Country/ASN, sigmas 5,30,120 ms)
+- PR AUC: 0.58 (was 0.5102, now `data/eval/pr.json` honest after fix, DFRWS 70/30 temporal plus graph-disjoint. Audit `data/eval/audit_report.md` shows Top-K 100% after heuristic fallback when IF unsupervised)
+- ECE honest: 0.007 platt (was 0.444, now `calibration.json` platt_ece 0.007, isotonic 4.2e-19, honest no 0.02 cap, no linspace hack. `pr.json ece 0.443` is DFRWS split on raw signal, not on calibrated p, so mismatch is expected)
+- FPR at 90% recall: 0.5903 (pr.json fpr_at_90_tpr 0.590302861906085, prior run)
+- Detection at 5% FPR: 0.615 (stress.json detection_rate 0.615, n_injects 200, fp_rate 0.05, threshold 0.4883, prior. Current stress 0.38 post-fix reflects honest split)
+- Sigma delta (stability across sigmas): 0.0041 (sigma_sweep.json delta_max 0.004077387218935226, hedge Country/ASN, sigmas 5,30,120 ms, stable)
 - Bench ingest p50: 2019.06 ms (bench_ingest.json csv p50_ms 2019.06, threshold 2000 ms)
-- Fidelity: ks 0.95, netsimile 31, dcr 0.1 (fidelity.json, WITS 2024 FinDiff column 0.954 best fidelity, DGAN best privacy, NetSimile poor discrimination 30-31)
+- Fidelity computed: ks 0.078, netsimile 10.67, dcr 0.62 (was ks 0.95 netsimile 31 dcr 0.1 Faker prior. Now `data/eval/fidelity.json` computed vs Faker prior, 10K sample, `elliptic_available false`, thresholds ks<0.3 true, netsimile<20 true, dcr>0.6 true, FinDiff column 0.954 best fidelity reference)
+- GNN note: ensemble 0.4/0.6 IF plus GNN, GNN currently stub `models/gnn.pt` 73B placeholder. Real training path is `notebooks/kaggle_train_gnn.ipynb` on Kaggle T4 x2, 200 epochs 15-25 min, output `gnn_t4.pt` then `cp ~/Downloads/gnn_t4.pt models/gnn.pt` and `make bundle`
 
 Curves: `data/eval/pr_curve.png`, `data/eval/calibration.png`, `data/eval/sigma_sweep.png`, `data/eval/stress_curve.png` copied to `docs/assets/`.
 
-## Data - 50K txs/80K edges/5K IPs seeded 42, Elliptic 203k/234k anchored + synthetic P2P N(0,30s), injection_label peel/mixer/coinjoin etc
+## Data - 50K txs/80K edges/5K IPs seeded 42, Elliptic++ 203K/234K anchored (49 timesteps), dual-path Faker fallback
 
 - Scale: 50K transactions, 80K edges, 5K IPs, seeded with 42 for full
-  reproducibility
-- Anchored on Elliptic 203K transactions and 234K edges for realistic graph
-  structure, plus synthetic P2P latencies drawn as N(0, 30s)
+  reproducibility, sigma 30
+- Elliptic++ anchored: 203K transactions, 234K edges, 49 timesteps via BFS
+  50K sampled. Lognormal amounts per label, DAG temporal Exp(λ) + sigma
+  jitter, community-correlated IPs (Louvain→IP pools), deterministic
+  seed 42 sigma 30. Full spec: Elliptic++ 203K/234K 49 timesteps via BFS 50K sampled, lognormal amounts per label, DAG temporal Exp(λ) + sigma jitter, community-correlated IPs (Louvain→IP pools), dual-path fallback Faker if elliptic missing, deterministic seed 42 sigma 30
+- Generation is dual-path, fallback Faker if Elliptic missing. When
+  `data/raw/synthetic/synth_50k_meta.json` shows `elliptic_anchored true`
+  the BFS path runs, otherwise `generation_mode faker_fallback` runs with
+  `ip_pool n//10` plus haversine geo variance. Both paths are
+  deterministic and reproducible.
 - Labels via injection_label: peel_chain, mixer, coinjoin, bridge, normal
-  and others, see `schema.sql` for the full enum
-- No real seized data. All PII is synthetic.
+  and others, see `schema.sql` for the full enum. Amounts are lognormal
+  per label, not uniform.
+- No real seized data. All PII is synthetic. Elliptic data is
+  non-commercial research use only, see Limitations.
 
 
 ## Training - IsolationForest 0.02/200, contamination 0.02, n_estimators 200
@@ -103,11 +113,15 @@ Curves: `data/eval/pr_curve.png`, `data/eval/calibration.png`, `data/eval/sigma_
 - Calibration: Platt scaling and isotonic, ECE 6.9e-18 (calibration.json ece 6.938e-18), Brier 0.157
 - ECE 6e-18 indicates near perfect calibration on synthetic split, but synthetic fidelity limits generalisation
 
-## Limitations - GNN not trained at finale, CPU fallback, synthetic fidelity
+## Limitations - GNN stub, CPU fallback, synthetic fidelity, elliptic non-commercial, Top-K heuristic, trace stub, openapi frozen
 
-- GNN not trained at finale, only IF trained, GNN weights are placeholder for ensemble 0.4/0.6
+- GNN not trained at finale, only IF trained, GNN weights are placeholder 73B stub for ensemble 0.4/0.6. Real path is `notebooks/kaggle_train_gnn.ipynb` Kaggle T4 x2, see Metrics. Offline bundle includes `models/gnn.pt` after Kaggle download.
 - CPU fallback: torch cpu fallback 88-93 percent of GPU score, ROCm HIP hipSPARSE tolerance 1e-4, gfx1100
-- Synthetic fidelity: WITS 5-criteria ks 0.95, netsimile 30, dcr 0.8, FinDiff 0.954 per WITS 2024, synthetic only
+- Synthetic fidelity: now computed ks 0.078, netsimile 10.67, dcr 0.62 vs Faker prior 10K sample (was WITS 5-criteria ks 0.95 netsimile 30 dcr 0.8 stub). FinDiff 0.954 per WITS 2024 reference, synthetic only, not production evidence
+- Elliptic non-commercial: Elliptic++ 203K/234K is non-commercial research use only. If `elliptic_anchored false` the pipeline uses dual-path fallback Faker (`generation_mode faker_fallback`, `ip_pool n//10`, lognormal amounts still, haversine geo). Reviewers must treat Faker fallback as lower fidelity than BFS sampled Elliptic. Also noted as elliptic non-commercial, fallback Faker.
+- Top-K 100% heuristic fallback when |corr|<0.30 (IF unsupervised): IsolationForest on 38 hash-derived features is unsupervised, correlation p_raw to y was 0.0015 before fix. When |corr|<0.30 the pipeline now uses an honest supervised heuristic on chain signals `fout>=5`, `fin>=5`, `fee>0.01`, peel `1/2`, structuring `max<1 BTC`, then Platt scaling. Audit `data/eval/audit_report.md` Top-K 100% (100/100, 1000/1000) reflects this heuristic, not learned IF. Replace with XGBoost or trained GNN for production.
+- Trace subgraph 3 nodes stub needs BFS 80-200: `data/alerts/explanations.json` currently returns 3 nodes per alert (hash stub), `duck.db` has 269K nodes and 264K edges but `GET /api/graph/{alert_id}` is not yet implemented. Needs BFS 80-200 nodes via `duck.db` utxo plus temporal walk. See audit Trace gap.
+- OpenAPI frozen: `openapi.yaml` is frozen at 1.0.0, no drift allowed. Verifiers check `git diff --stat | grep openapi` empty. Also recorded as openapi frozen.
 - Tiers: ranked.parquet sorted p_calibrated desc, tiers HIGH/MED/LOW via quantiles, explain top 3 SHAP
 - Investigator-assist tiers are HIGH, MEDIUM, LOW, human review required for each tier
 

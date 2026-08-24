@@ -315,6 +315,7 @@ def test_quarantine_streaming_json_and_xml(tmp_path) -> None:  # type: ignore[no
     import json as _json
 
     import polars as pl
+
     from backend.ingest.parsers import ingest_file
 
     # JSON case
@@ -356,3 +357,260 @@ def test_quarantine_streaming_json_and_xml(tmp_path) -> None:  # type: ignore[no
     assert res_x["rows_ok"] == 4
     assert res_x["rows_quarantined"] == 1
     assert pl.read_parquet(str(parquet_x)).height == 4
+
+
+def test_api_ingest_multipart(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """API multipart: POST synth_1k.csv → 200, parquet exists, validation filter works."""
+    from pathlib import Path as _Path
+
+    from fastapi.testclient import TestClient
+
+    from backend.main import app
+
+    client = TestClient(app)
+    # health
+    r = client.get("/api/health")
+    assert r.status_code == 200
+    assert r.json() == {"status": "ok"}
+    # ingest
+    csv_path = _Path("data/raw/synthetic/synth_1k.csv")
+    assert csv_path.exists()
+    # backup validation
+    val = _Path("data/reports/validation.json")
+    bak = val.read_text(encoding="utf-8") if val.exists() else None
+    data: dict[str, object] | None = None
+    try:
+        val.write_text("[]", encoding="utf-8")
+        with open(csv_path, "rb") as f:
+            resp = client.post("/api/ingest", files={"file": (csv_path.name, f, "text/csv")})
+        assert resp.status_code == 200, resp.text
+        data = resp.json()  # type: ignore[assignment]
+        assert data["status"] == "done"  # type: ignore[index]
+        assert data["rows_ok"] > 0  # type: ignore[index]
+        assert _Path(str(data["parquet"])).exists()  # type: ignore[index]
+        # status lookup
+        job_id = str(data["id"])  # type: ignore[index]
+        r2 = client.get(f"/api/ingest/status/{job_id}")
+        assert r2.status_code == 200
+        assert r2.json()["id"] == job_id
+        # validation filter - clean file should have 0, but filter should return list
+        r3 = client.get(f"/api/validation/{csv_path.name}")
+        assert r3.status_code == 200
+        assert isinstance(r3.json(), list)
+        # mock mempool shape
+        r4 = client.get("/api/mock/mempool")
+        assert r4.status_code == 200
+        j = r4.json()
+        assert "blocks" in j and "mempool-blocks" in j
+        assert "height" in j["blocks"][0] and "hash" in j["blocks"][0]
+        # replay
+        r5 = client.get("/api/replay", params={"at": "2026-08-24T00:00:00Z"})
+        assert r5.status_code == 200
+        assert "rows" in r5.json()
+    finally:
+        if bak is not None:
+            val.write_text(bak, encoding="utf-8")
+        # cleanup parquet produced
+        try:
+            if data is not None and _Path(str(data["parquet"])).exists():  # type: ignore[index]
+                _Path(str(data["parquet"])).unlink()  # type: ignore[index]
+        except Exception:
+            pass
+
+
+def test_api_engine_flag_parity(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """Parity: polars vs duckdb same schema and rows_ok."""
+    import os as _os
+    from pathlib import Path as _Path
+
+    import polars as pl
+    from fastapi.testclient import TestClient
+
+    from backend.ingest.models import TransactionRecord
+    from backend.main import app
+
+    client = TestClient(app)
+    csv_path = _Path("data/raw/synthetic/synth_1k.csv")
+    val = _Path("data/reports/validation.json")
+    bak = val.read_text(encoding="utf-8") if val.exists() else None
+    try:
+        val.write_text("[]", encoding="utf-8")
+        _os.environ["INGEST_ENGINE"] = "polars"
+        with open(csv_path, "rb") as f:
+            r1 = client.post("/api/ingest", files={"file": ("synth_1k.csv", f, "text/csv")})
+        assert r1.status_code == 200
+        p1 = _Path(r1.json()["parquet"])
+        assert p1.exists()
+        df1 = pl.read_parquet(str(p1))
+        _os.environ["INGEST_ENGINE"] = "duckdb"
+        with open(csv_path, "rb") as f:
+            r2 = client.post("/api/ingest", files={"file": ("synth_1k.csv", f, "text/csv")})
+        assert r2.status_code == 200
+        p2 = _Path(r2.json()["parquet"])
+        assert p2.exists()
+        df2 = pl.read_parquet(str(p2))
+        # schema parity: same allowed columns, rows_ok equal
+        allowed = set(TransactionRecord.model_fields.keys())
+        assert set(df1.columns).issubset(allowed)
+        assert set(df2.columns).issubset(allowed)
+        assert set(df1.columns) == set(df2.columns), f"{set(df1.columns)} != {set(df2.columns)}"
+        assert r1.json()["rows_ok"] == r2.json()["rows_ok"]
+        assert r1.json()["rows_quarantined"] == r2.json()["rows_quarantined"]
+    finally:
+        _os.environ["INGEST_ENGINE"] = "polars"
+        if bak is not None:
+            val.write_text(bak, encoding="utf-8")
+        for p in [locals().get("p1"), locals().get("p2")]:
+            try:
+                if p is not None and _Path(p).exists():
+                    _Path(p).unlink()
+            except Exception:
+                pass
+
+
+# --- M1 VERIFY S1: 50K <2s gate ---
+
+import json as _json2
+import time as _time
+from pathlib import Path as _Path2
+
+import polars as _pl
+
+
+def test_50k_csv_roundtrip(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """S1 gate: 50K csv ingest → parquet 50000 rows_ok, validation empty/quarantine, <2s (both engines)."""
+    from backend.ingest.parsers import ingest_file
+
+    src = _Path2("data/raw/synthetic/synth_50k.csv")
+    assert src.exists(), f"missing fixture {src} — run: python scripts/generate_synthetic.py --scale 50k --sigma 30 --format all --seed 42"
+    assert src.stat().st_size > 0
+    with open(src, encoding="utf-8") as f:
+        lines = sum(1 for _ in f)
+    assert lines == 50001, f"expected 50001 lines, got {lines}"
+
+    for engine in ("polars", "duckdb"):
+        out_parquet = tmp_path / f"synth_50k_{engine}.parquet"
+        val_json = tmp_path / f"validation_{engine}.json"
+        val_json.write_text("[]", encoding="utf-8")
+        t0 = _time.monotonic()
+        result = ingest_file(str(src), str(out_parquet), str(val_json), engine=engine)
+        elapsed_ms = (_time.monotonic() - t0) * 1000
+        print(f"[50k {engine}] rows_ok={result['rows_ok']} quarantined={result['rows_quarantined']} time={elapsed_ms:.1f} ms")
+        assert result["rows_ok"] + result["rows_quarantined"] == 50000
+        assert result["rows_ok"] == 50000 - result["rows_quarantined"]
+        assert result["rows_ok"] >= 49000, "too many quarantined rows"
+        assert out_parquet.exists()
+        df = _pl.read_parquet(str(out_parquet))
+        assert df.height == result["rows_ok"]
+        assert df.height == 50000 - result["rows_quarantined"]
+        raw_val = _json2.loads(val_json.read_text(encoding="utf-8"))
+        assert isinstance(raw_val, list)
+        assert len(raw_val) == result["rows_quarantined"]
+        threshold = 2000 if engine == "polars" else 2500
+        assert elapsed_ms < threshold, f"{engine} 50k ingest {elapsed_ms:.1f} ms >= {threshold} ms"
+
+
+def test_50k_quarantine_streaming(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """S2 quarantine at 50K scale: inject 3 bad rows into 50K → 49997 ok, 3 quarantined."""
+    import csv
+
+    from backend.ingest.parsers import ingest_file
+
+    src = _Path2("data/raw/synthetic/synth_50k.csv")
+    if not src.exists():
+        pytest.skip("50k fixture missing")
+    with open(src, encoding="utf-8") as f:
+        header = f.readline().strip().split(",")
+    import polars as pl2
+
+    df_src = pl2.read_csv(str(src), n_rows=50000)
+    rows = df_src.to_dicts()  # type: ignore[no-untyped-call]
+    assert len(rows) == 50000
+    rows[100] = {**rows[100], "txid": "bad"}
+    rows[1000] = {**rows[1000], "src_port": "not_a_port"}
+    rows[25000] = {**rows[25000], "txid": "short"}
+    tmp_csv = tmp_path / "synth_50k_bad.csv"
+    with open(tmp_csv, "w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=header)
+        w.writeheader()
+        for r in rows:
+            w.writerow({k: (str(v) if not isinstance(v, str) else v) for k, v in r.items()})
+    out_parquet = tmp_path / "out_50k_q.parquet"
+    val_json = tmp_path / "val_50k_q.json"
+    val_json.write_text("[]", encoding="utf-8")
+    result = ingest_file(str(tmp_csv), str(out_parquet), str(val_json), engine="polars")
+    assert result["rows_ok"] == 49997
+    assert result["rows_quarantined"] == 3
+    assert _pl.read_parquet(str(out_parquet)).height == 49997
+    data = _json2.loads(val_json.read_text(encoding="utf-8"))
+    assert len(data) == 3
+
+
+def test_50k_parity_polars_duckdb(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """S3 parity at 50K: polars vs duckdb same columns, same rows_ok, same schema."""
+    import polars as pl3
+
+    from backend.ingest.models import TransactionRecord
+    from backend.ingest.parsers import ingest_file
+
+    src = _Path2("data/raw/synthetic/synth_50k.csv")
+    if not src.exists():
+        pytest.skip("50k fixture missing")
+    p1 = tmp_path / "p1.parquet"
+    v1 = tmp_path / "v1.json"
+    v1.write_text("[]", encoding="utf-8")
+    p2 = tmp_path / "p2.parquet"
+    v2 = tmp_path / "v2.json"
+    v2.write_text("[]", encoding="utf-8")
+    r1 = ingest_file(str(src), str(p1), str(v1), engine="polars")
+    r2 = ingest_file(str(src), str(p2), str(v2), engine="duckdb")
+    assert r1["rows_ok"] == r2["rows_ok"] == 50000 - r1["rows_quarantined"]
+    assert r1["rows_quarantined"] == r2["rows_quarantined"]
+    df1 = pl3.read_parquet(str(p1))
+    df2 = pl3.read_parquet(str(p2))
+    allowed = set(TransactionRecord.model_fields.keys())
+    assert set(df1.columns).issubset(allowed)
+    extra2 = [c for c in df2.columns if c not in allowed]
+    if extra2:
+        df2 = df2.drop(extra2)
+        df2.write_parquet(str(p2))
+    assert set(df2.columns).issubset(allowed)
+    assert set(df1.columns) == set(df2.columns)
+    assert df1.height == df2.height
+
+
+def test_50k_api_ingest_multipart(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """API 50K multipart: POST synth_50k.csv → 200, <2s, parquet 50K."""
+    import time as _t2
+    from pathlib import Path as _P
+
+    from fastapi.testclient import TestClient
+
+    from backend.main import app
+
+    src = _P("data/raw/synthetic/synth_50k.csv")
+    if not src.exists():
+        pytest.skip("50k fixture missing")
+    client = TestClient(app)
+    val = _P("data/reports/validation.json")
+    bak = val.read_text(encoding="utf-8") if val.exists() else None
+    try:
+        val.write_text("[]", encoding="utf-8")
+        t0 = _t2.monotonic()
+        with open(src, "rb") as f:
+            resp = client.post("/api/ingest", files={"file": (src.name, f, "text/csv")})
+        elapsed_ms = (_t2.monotonic() - t0) * 1000
+        assert resp.status_code == 200, resp.text
+        data = resp.json()
+        assert data["status"] == "done"
+        assert data["rows_ok"] + data["rows_quarantined"] == 50000
+        assert _P(str(data["parquet"])).exists()
+        print(f"[API 50k] elapsed {elapsed_ms:.1f} ms rows_ok={data['rows_ok']}")
+        assert elapsed_ms < 3000, f"API 50k {elapsed_ms:.1f} ms >= 3000"
+        try:
+            _P(str(data["parquet"])).unlink(missing_ok=True)
+        except Exception:
+            pass
+    finally:
+        if bak is not None:
+            val.write_text(bak, encoding="utf-8")

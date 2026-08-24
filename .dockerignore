@@ -1,0 +1,26 @@
+# M6 Platform — air-gapped bundle must keep wheels + mmdb
+.venv
+.git
+.gitignore
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+.ruff_cache
+.env
+.env.*
+!.env.example
+data/raw/watch/inbox
+node_modules
+npm-debug.log
+.DS_Store
+.coverage
+htmlcov
+dist/.parcel-cache
+# Keep bundle-critical dirs — must NOT be ignored
+!wheels
+!wheels/**
+!data/geo
+!data/geo/*.mmdb
+!models
+!models/**

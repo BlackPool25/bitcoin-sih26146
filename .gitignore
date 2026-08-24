@@ -40,9 +40,17 @@ models/*
 !models/*.pt
 !models/*.json
 
+# Elliptic raw (666M) — keep manifest only, not CSVs
+data/raw/elliptic/*.csv
+!data/raw/elliptic/.gitkeep
+!data/raw/elliptic/README.md
+!data/raw/elliptic/SHA256SUMS
+BTC_DATA.csv
+
 # Notebooks
 .ipynb_checkpoints/
 *.ipynb
+!notebooks/kaggle_train_gnn.ipynb
 
 # Env
 .env

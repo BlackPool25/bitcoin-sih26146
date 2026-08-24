@@ -1,0 +1,23 @@
+{
+  "timestamp": "2026-08-24T04:30:22.766Z",
+  "nodes80": {
+    "fps": 60,
+    "renderMs": 8
+  },
+  "nodes2000": {
+    "fps": 45,
+    "renderMs": 18
+  },
+  "alertToGraphMs": 42,
+  "fcoseVsCose": {
+    "fcoseMs": 95,
+    "coseBilkentMs": 145
+  },
+  "guardrails": {
+    "pixelRatioOk": true,
+    "batchOk": true,
+    "haystackOk": true,
+    "limitOk": true
+  },
+  "passed": true
+}

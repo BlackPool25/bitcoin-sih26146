@@ -1,0 +1,112 @@
+[
+  {
+    "ip": "8.8.8.8",
+    "country": "US",
+    "city": "Mountain View",
+    "asn": 15169,
+    "lat": 37.09,
+    "lng": -95.71,
+    "radius": 1000,
+    "tier": "tier1",
+    "accuracy_radius": 1000
+  },
+  {
+    "ip": "1.1.1.1",
+    "country": "RU",
+    "city": "Moscow",
+    "asn": 15169,
+    "lat": 55.75,
+    "lng": 37.61,
+    "radius": 800,
+    "tier": "tier2",
+    "accuracy_radius": 800
+  },
+  {
+    "ip": "114.114.114.114",
+    "country": "CN",
+    "city": "Beijing",
+    "asn": 4134,
+    "lat": 39.9,
+    "lng": 116.4,
+    "radius": 1200,
+    "tier": "tier1",
+    "accuracy_radius": 1200
+  },
+  {
+    "ip": "8.8.4.4",
+    "country": "DE",
+    "city": "Berlin",
+    "asn": 3320,
+    "lat": 52.52,
+    "lng": 13.4,
+    "radius": 500,
+    "tier": "tier3",
+    "accuracy_radius": 500
+  },
+  {
+    "ip": "9.9.9.9",
+    "country": "IN",
+    "city": "Mumbai",
+    "asn": 4755,
+    "lat": 19.07,
+    "lng": 72.87,
+    "radius": 700,
+    "tier": "tier2",
+    "accuracy_radius": 700
+  },
+  {
+    "ip": "208.67.222.222",
+    "country": "BR",
+    "city": "Sao Paulo",
+    "asn": 27699,
+    "lat": -23.55,
+    "lng": -46.63,
+    "radius": 600,
+    "tier": "tier3",
+    "accuracy_radius": 600
+  },
+  {
+    "ip": "185.228.169.168",
+    "country": "GB",
+    "city": "London",
+    "asn": 5089,
+    "lat": 51.5,
+    "lng": -0.12,
+    "radius": 400,
+    "tier": "tier2",
+    "accuracy_radius": 400
+  },
+  {
+    "ip": "77.88.8.8",
+    "country": "JP",
+    "city": "Tokyo",
+    "asn": 2516,
+    "lat": 35.68,
+    "lng": 139.65,
+    "radius": 900,
+    "tier": "tier1",
+    "accuracy_radius": 900
+  },
+  {
+    "ip": "199.85.126.10",
+    "country": "US",
+    "city": "New York",
+    "asn": 7922,
+    "lat": 40.71,
+    "lng": -74,
+    "radius": 300,
+    "tier": "tier3",
+    "accuracy_radius": 300
+  },
+  {
+    "ip": "194.145.241.10",
+    "country": "DE",
+    "city": "Frankfurt",
+    "asn": 3320,
+    "lat": 50.11,
+    "lng": 8.68,
+    "radius": 550,
+    "tier": "tier1",
+    "accuracy_radius": 550
+  }
+]

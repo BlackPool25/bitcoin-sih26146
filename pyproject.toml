@@ -12,6 +12,8 @@ dependencies = [
     "pydantic>=2.9",
     "polars>=1.12",
     "duckdb>=1.1",
+    "scikit-learn>=1.5",
+    "numpy>=1.26",
     "geoip2>=4.8",
     "maxminddb>=2.2",
     "networkx>=3.3",
@@ -27,6 +29,7 @@ dependencies = [
     "basedpyright>=1.18",
     "httpx2>=2.0",
     "python-multipart>=0.0.32",
+    "openapi-spec-validator>=0.9.0",
 ]
 
 [project.optional-dependencies]
@@ -72,7 +75,7 @@ reportUnknownVariableType = false
 reportUnknownMemberType = false
 reportUnknownArgumentType = false
 reportUnknownParameterType = false
-include = ["backend", "tests", "scripts"]
+include = ["backend", "tests", "scripts", "ml"]
 
 [tool.pytest.ini_options]
 minversion = "8.0"

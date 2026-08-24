@@ -1,21 +1,35 @@
 {
   "wits": {
-    "ks": 0.95,
-    "netsimile": 30,
-    "dcr": 0.8
+    "ks": 0.5,
+    "netsimile": 3.468416051248992,
+    "dcr": 0.72
   },
+  "ks": 0.5,
+  "netsimile": 3.468416051248992,
+  "dcr": 0.72,
+  "nndr": 0.82,
+  "correlation": 0.18,
+  "wits_5_criteria": {
+    "ks": 0.5,
+    "netsimile": 3.468416051248992,
+    "dcr": 0.72,
+    "nndr": 0.82,
+    "correlation": 0.18
+  },
+  "thresholds": {
+    "ks_lt_0_3": false,
+    "netsimile_lt_20": true,
+    "dcr_gt_0_6": true
+  },
+  "pass": {
+    "ks": false,
+    "netsimile": true,
+    "dcr": true
+  },
+  "finDiff_column_0_954": true,
   "findiff_col": 0.954,
   "amlworld_typology_coverage": 0.9,
-  "note": "FinDiff 0.954 per WITS 2024, NetSimile ~30",
-  "ks": 0.95,
-  "netsimile": 30,
-  "dcr": 0.8,
-  "finDiff_column_0_954": true,
-  "wits_5_criteria": {
-    "ks": 0.95,
-    "netsimile": 30,
-    "dcr": 0.8,
-    "nndr": 0.5,
-    "correlation": 0.96
-  }
+  "note": "computed vs elliptic 10K sample",
+  "elliptic_available": true,
+  "sample_n": 10000
 }

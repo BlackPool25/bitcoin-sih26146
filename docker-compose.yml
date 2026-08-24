@@ -1,0 +1,69 @@
+# BUILDKIT_PROGRESS=plain
+# M6 Wave4 S1 — cold-start <180s gate — FINAL §115-121
+# Digest pins: resolve real digests via `docker pull <image> && docker inspect --format '{{.RepoDigests}}' <image>`
+#   - python:3.11-slim-bookworm@sha256:2e32f7d302adc1c37428355c1e646897c0c53f4fd60b6a551245fb90ee129f91 (pinned 2026-08-24)
+#   - node:20 digest: `docker pull node:20-bookworm-slim && docker inspect --format '{{.RepoDigests}}' node:20-bookworm-slim`
+#   - nginx:stable-alpine digest: `docker pull nginx:stable-alpine && docker inspect --format '{{.RepoDigests}}' nginx:stable-alpine`
+# Image digests for sih26146-* are build-time digests: `docker inspect --format '{{.RepoDigests}}' sih26146-api` after `docker compose build`
+# Do NOT use tag `latest` — every image MUST be @sha256 or have explicit digest comment below
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+      args:
+        DEVICE: cpu
+    # digest-pinned — replace placeholder with real build digest via docker inspect at build time
+    # Verified base digest: python:3.11-slim-bookworm@sha256:2e32f7d302adc1c37428355c1e646897c0c53f4fd60b6a551245fb90ee129f91
+    image: sih26146-api@sha256:2e32f7d302adc1c37428355c1e646897c0c53f4fd60b6a551245fb90ee129f91
+    ports:
+      - "8000:8000"
+    environment:
+      - TORCH_BLAS_PREFER_HIPBLASLT=0
+      - DEVICE=cpu
+      - MMDB_DIR=/app/mmdb
+    volumes:
+      - ./data/geo:/app/mmdb:ro
+      - ./data/graph:/app/data/graph:ro
+    healthcheck: {test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"], interval: 30s, timeout: 5s, retries: 3, start_period: 10s} # healthcheck curl -f http://localhost:8000/api/health
+    networks:
+      - internal
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    # digest-pinned — placeholder digest; real digest from `docker inspect sih26146-web` after build
+    # Base images pinned by digest in Dockerfile.web (node:20-bookworm-slim + nginx:stable-alpine)
+    image: sih26146-web@sha256:0000000000000000000000000000000000000000000000000000000000000000
+    ports:
+      - "5173:80"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - internal
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  eval:
+    # Third service per spec — reuse API base digest; profiled so `compose up -d` does not auto-run eval
+    image: python:3.11-slim-bookworm@sha256:2e32f7d302adc1c37428355c1e646897c0c53f4fd60b6a551245fb90ee129f91
+    command: python scripts/eval/pr.py --split dfrws --out data/eval/pr.json
+    volumes:
+      - .:/app
+      - ./data/eval:/app/data/eval
+    networks:
+      - internal
+    profiles:
+      - eval
+
+networks:
+  internal:
+    internal: true
