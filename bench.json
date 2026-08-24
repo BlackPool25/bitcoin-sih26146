@@ -1,0 +1,21 @@
+{
+  "features": {
+    "rows": 50000,
+    "cols": 38,
+    "time_ms": 1200
+  },
+  "train": {
+    "time_s": 0.54,
+    "contamination": 0.02,
+    "n_estimators": 200,
+    "pass_lt_5s": true
+  },
+  "shap_dummy_ms": 0.3,
+  "ece": 6.9e-18,
+  "timestamp": "2026-08-24T04:19:22.809519Z",
+  "p50_ms": 1200,
+  "p95_ms": 1906.23,
+  "ingest_p50_ms": 1903.2,
+  "scale": "50k",
+  "engine": "polars"
+}

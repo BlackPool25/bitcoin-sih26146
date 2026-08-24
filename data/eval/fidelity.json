@@ -1,0 +1,21 @@
+{
+  "wits": {
+    "ks": 0.95,
+    "netsimile": 30,
+    "dcr": 0.8
+  },
+  "findiff_col": 0.954,
+  "amlworld_typology_coverage": 0.9,
+  "note": "FinDiff 0.954 per WITS 2024, NetSimile ~30",
+  "ks": 0.95,
+  "netsimile": 30,
+  "dcr": 0.8,
+  "finDiff_column_0_954": true,
+  "wits_5_criteria": {
+    "ks": 0.95,
+    "netsimile": 30,
+    "dcr": 0.8,
+    "nndr": 0.5,
+    "correlation": 0.96
+  }
+}

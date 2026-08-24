@@ -1,0 +1,52 @@
+# ROCm gx1100 — TORCH_BLAS_PREFER_HIPBLASLT=0 required
+#   on gfx1100 (ml/train_gnn.py:8) — see
+#   PROTOTYPE_DECISIONS_FINAL §1 F5 52-64% MP-only
+# DEVICE=gfx1100 first-class OK, CPU fallback default — bundle
+#   both wheel sets, Dockerfile ARG DEVICE=cpu
+# Install via: pip install --no-index --find-links wheels/rocm
+#   -r requirements.rocm.txt (or wheels/cpu for fallback)
+# pip download quad: --platform manylinux2014_x86_64
+#   --python-version 3.11 --implementation cp --abi cp311
+#   --only-binary=:all: — NOT pip wheel --platform
+# gfx1100: glibc >=2.32 required; HIPBLASLT unsupported — set
+#   TORCH_BLAS_PREFER_HIPBLASLT=0 (ml/train_gnn.py:8)
+# ROCm 7.14 — hipSPARSE BSR parity ≤1e-4 fp32 (F5 MP-only)
+# --index-url https://repo.amd.com/rocm/whl-multi-arch/
+--extra-index-url https://repo.amd.com/rocm/whl-multi-arch
+
+# Core ROCm torch — pinned gfx1100 (ROCm 7.14)
+torch==2.4.1  # gfx1100 — +rocm variant via repo.amd.com
+torchvision==0.19.1  # ROCm — via repo.amd.com
+torchaudio==2.4.1  # ROCm — via repo.amd.com
+
+# --find-links https://github.com/Looong01/pyg-rocm-build/releases
+# PyG extensions — ROCm wheels via Looong01/pyg-rocm-build
+#   (hipSPARSE, glibc >=2.32, MP-only)
+pyg_lib
+torch_scatter
+torch_sparse
+torch_cluster
+torch_spline_conv
+torch_geometric>=2.6
+
+# ML / scoring deps
+scikit-learn>=1.4
+shap>=0.44
+jinja2
+networkx>=3.3
+polars>=1.12
+duckdb>=1.1
+
+# Runtime deps (from pyproject.toml)
+fastapi>=0.110
+uvicorn>=0.30
+pydantic>=2.9
+geoip2>=4.8
+maxminddb>=2.2
+python-louvain>=0.16
+ijson>=3.3
+lxml>=5.0
+watchdog>=4.0
+python-magic>=0.4.27
+faker>=24.0
+typer>=0.12

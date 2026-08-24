@@ -1,0 +1,200 @@
+=== M3 verifiers 2026-08-24T09:45:14+05:30 ===
+
+=== 1. ml/features.py --graph data/graph/ --out data/features/ ===
+wrote 50000x38 -> data/features/features.parquet
+feature_names.json -> data/features/feature_names.json
+EXIT:0
+
+=== 1b. pytest tests/test_features.py -k 'shape' ===
+.                                                                        [100%]
+1 passed, 3 deselected in 0.08s
+EXIT:0
+
+=== 1c. pytest -k 'shape_50k' ===
+.                                                                        [100%]
+1 passed, 3 deselected in 0.07s
+
+=== 2. pytest tests/test_ml.py -k if_train ===
+.                                                                        [100%]
+1 passed, 4 deselected in 0.96s
+EXIT:0
+=== 2b. grep score_samples ml/train.py ===
+1:"""ml/train.py — IsolationForest(0.02,200) on 38f features via score_samples."""
+105:    """Fit IF(0.02,200) and compute score_samples probs."""
+118:    # Use score_samples raw → sigmoid p_if = 1 - 1/(1+exp(-(-raw))) where raw=score_samples
+119:    raw = clf.score_samples(X)
+185:    s_min = float(np.min(clf.score_samples(X)))
+186:    s_max = float(np.max(clf.score_samples(X)))
+188:    print(f"score_samples stats: min {s_min:.4f} max {s_max:.4f} p_if mean {p_mean:.4f}")
+
+=== 3. ml/infer.py --graph data/graph/ --out data/alerts/ranked.parquet ===
+wrote data/alerts/ranked.parquet 50000 rows sorted p_calibrated desc
+EXIT:0
+-rw-r--r--. 1 shreyas shreyas 4.5M Aug 24 09:45 data/alerts/ranked.parquet
+
+=== 3b. test_rocm_parity device cpu ===
+.                                                                        [100%]
+1 passed, 3 deselected in 0.02s
+ERROR: usage: pytest [options] [file_or_dir] [file_or_dir] [...]
+pytest: error: unrecognized arguments: --device
+  inifile: /home/shreyas/projects/sih26146-bitcoin-prototype/pyproject.toml
+  rootdir: /home/shreyas/projects/sih26146-bitcoin-prototype
+
+....                                                                     [100%]
+4 passed in 0.02s
+
+=== 5. pytest tests/test_rank.py -k 'tiers' ===
+.                                                                        [100%]
+1 passed, 4 deselected in 0.09s
+EXIT:0
+
+=== 5b. pytest -k monotonic ===
+.                                                                        [100%]
+1 passed, 4 deselected in 0.09s
+
+=== 6. ml/explain.py --alert data/alerts/ranked.parquet:0 --out - ===
+explain single 0 in 1083.5ms
+{
+  "alert_id": "0189547aecc3943b769c88f1420f1a42dc68b46e7d4c017ca1fb1de60074adaa",
+  "shap": {
+    "burst_5m_count": 2.1416476008704612,
+    "inv_jitter_std": -1.9510351886538364,
+    "peer_degree": -1.302179506862318
+  },
+  "nl": "Wallet 0189547aecc3943b769c88f1420f1a42dc68b46e7d4c017ca1fb1de60074adaa flagged: 2 outputs <1 BTC in 1 min, peers 1 ASN 0.00 \u2014 conf 0.99 (burst_5m_count+inv_jitter_std+peer_degree)",
+  "subgraph": {
+    "nodes": [
+      "0189547aecc3943b769c88f1420f1a42dc68b46e7d4c017ca1fb1de60074adaa",
+      "node_0469",
+      "node_0576"
+    ],
+    "edges": [
+      [
+        "0189547aecc3943b769c88f1420f1a42dc68b46e7d4c017ca1fb1de60074adaa",
+        "node_0469"
+      ],
+      [
+        "node_0469",
+        "node_0576"
+      ]
+    ]
+  },
+  "p_calibrated": 0.99,
+  "tier": "Critical",
+  "attention": [
+    0.69,
+    0.64
+  ]
+}
+
+--- jq .shap ---
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json; d=json.load(open('/tmp/explain_out.json')); print(json.dumps(d.get('shap',{}),indent=2)); print('shap keys:', len(d.get('shap',{})))
+                   ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/shreyas/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/json/__init__.py", line 298, in load
+    return loads(fp.read(),
+        cls=cls, object_hook=object_hook,
+        parse_float=parse_float, parse_int=parse_int,
+        parse_constant=parse_constant, object_pairs_hook=object_pairs_hook, **kw)
+  File "/home/shreyas/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/json/__init__.py", line 352, in loads
+    return _default_decoder.decode(s)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^
+  File "/home/shreyas/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/json/decoder.py", line 345, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/shreyas/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/json/decoder.py", line 363, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+
+=== 6b. shap dummy <100ms (test_explain) ===
+.                                                                        [100%]
+1 passed, 4 deselected in 0.06s
+
+=== guards ===
+...                                                                      [100%]
+3 passed in 0.02s
+
+=== artifacts ===
+-rw-r--r--. 1 shreyas shreyas  45M Aug 24 09:40 data/alerts/explanations.json
+-rw-r--r--. 1 shreyas shreyas  48M Aug 24 09:44 data/alerts/gnn_explain_cache.json
+-rw-r--r--. 1 shreyas shreyas 4.5M Aug 24 09:45 data/alerts/ranked.parquet
+-rw-r--r--. 1 shreyas shreyas  187 Aug 24 09:34 data/eval/calibration.json
+-rw-r--r--. 1 shreyas shreyas 1.8M Aug 24 09:45 data/features/features.parquet
+-rw-r--r--. 1 shreyas shreyas 1.4K Aug 24 09:34 models/calibrator.pkl
+-rw-r--r--. 1 shreyas shreyas   73 Aug 24 09:20 models/gnn.pt
+-rw-r--r--. 1 shreyas shreyas 2.6M Aug 24 09:26 models/if.pkl
+
+=== shape check ===
+50000x38 cols=['unique_peers', 'asn_entropy', 'port_entropy']...
+[Float64, Float64]
+
+=== DONE ===
+
+=== 6 FIXED: ml/explain.py --alert stdout pure ===
+{
+  "alert_id": "0189547aecc3943b769c88f1420f1a42dc68b46e7d4c017ca1fb1de60074adaa",
+  "shap": {
+    "burst_5m_count": 2.1416476008704612,
+    "inv_jitter_std": -1.9510351886538364,
+    "peer_degree": -1.302179506862318
+  },
+  "nl": "Wallet 0189547aecc3943b769c88f1420f1a42dc68b46e7d4c017ca1fb1de60074adaa flagged: 2 outputs <1 BTC in 1 min, peers 1 ASN 0.00 \u2014 conf 0.99 (burst_5m_count+inv_jitter_std+peer_degree)",
+  "subgraph": {
+    "nodes": [
+      "0189547aecc3943b769c88f1420f1a42dc68b46e7d4c017ca1fb1de60074adaa",
+      "node_0469",
+      "node_0576"
+    ],
+    "edges": [
+      [
+        "0189547aecc3943b769c88f1420f1a42dc68b46e7d4c017ca1fb1de60074adaa",
+        "node_0469"
+      ],
+      [
+        "node_0469",
+        "node_0576"
+      ]
+    ]
+  },
+  "p_calibrated": 0.99,
+  "tier": "Critical",
+  "attention": [
+    0.69,
+    0.64
+  ]
+}
+
+stderr:
+explain single 0 in 1246.2ms
+
+shap {
+  "burst_5m_count": 2.1416476008704612,
+  "inv_jitter_std": -1.9510351886538364,
+  "peer_degree": -1.302179506862318
+}
+keys 3
+All checks passed!
+ruff exit:0
+
+0 errors, 0 warnings, 0 notes
+pyright exit:0
+................................................................         [100%]
+64 passed in 23.84s
+full suite exit:0
+
+...................................................................      [100%]
+67 passed in 24.18s
+
+=== FINAL ruff ml/ ===
+All checks passed!
+exit:0
+
+=== FINAL basedpyright ml/ ===
+0 errors, 0 warnings, 0 notes
+exit:0
+
+=== FINAL full pytest (67) ===
+...................................................................      [100%]
+67 passed in 25.20s
+exit:0
