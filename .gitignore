@@ -2,39 +2,88 @@
 __pycache__/
 *.py[cod]
 *.pyo
+*.pyd
 .venv/
+venv/
+.env/
 *.egg-info/
 dist/
 build/
 wheels/
+*.egg
 
-# Data (keep structure via .gitkeep, ignore large artifacts)
-data/clean/parquet/*.parquet
-data/raw/synthetic/*.csv
-data/raw/synthetic/*.json
-data/raw/synthetic/*.xml
+# Data — generated artifacts (keep directory structure via .gitkeep)
+data/clean/
+!data/clean/.gitkeep
+data/raw/synthetic/
+!data/raw/synthetic/.gitkeep
 data/geo/*.mmdb
 *.mmdb
+data/graph/*
+!data/graph/.gitkeep
+data/features/*
+!data/features/.gitkeep
+data/alerts/*
+!data/alerts/.gitkeep
+data/eval/*
+!data/eval/.gitkeep
+data/reports/*
+!data/reports/.gitkeep
+artifacts/*
+!artifacts/.gitkeep
+
+# Models — keep small versioned models, ignore large cache if needed
+models/*
+!models/.gitkeep
+!models/model_card.md
+!models/*.pkl
+!models/*.pt
+!models/*.json
+
+# Notebooks
+.ipynb_checkpoints/
+*.ipynb
 
 # Env
 .env
+.env.*
+!.env.example
 
 # IDE
 .vscode/
 .idea/
 *.swp
+*.swo
+*~
 
 # OS
 .DS_Store
+Thumbs.db
 
 # Cache
 .ruff_cache/
 .pytest_cache/
 .mypy_cache/
 .pyright/
+.coverage
+htmlcov/
 
 # Node (future M4/M5)
 node_modules/
-.codegraph
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+
+# Tooling state (local only)
+.codegraph/
 .omo/
 .serena/
+tmp/
+temp/
+*.log
+*.tmp
+
+# Docker / bundle artifacts (large, local builds)
+bundle.tar
+bench_all.json
+duck.db
