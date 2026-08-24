@@ -25,6 +25,8 @@ dependencies = [
     "pytest>=8.0",
     "ruff>=0.8",
     "basedpyright>=1.18",
+    "httpx2>=2.0",
+    "python-multipart>=0.0.32",
 ]
 
 [project.optional-dependencies]

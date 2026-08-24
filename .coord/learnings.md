@@ -9,3 +9,8 @@
 - 2026-08-23 — Eval: DFRWS leakage-free builder needed for Δ≥0.05 claim — `scripts/eval/pr.py:0`
 - (agents append below)
 
+- 2026-08-24 — Build: `community` import name vs pip `python-louvain` mismatch — `backend/graph/layers.py:8` import community
+- 2026-08-24 — Build: ruff C401 `set(str(x) for x in outs)` must be `{str(x) for x in outs}` — `backend/graph/_coinjoin.py:88` fixed via --unsafe-fixes
+- 2026-08-24 — Verifier: duckdb CLI not in PATH — use `uv run python -c "import duckdb"` — `data/graph/duck.db` fallback handles both root and data/graph paths
+- 2026-08-24 — Verifier: basedpyright strict reports 8 legacy in scripts/tests (dict missing type args, unused isinstance) — `backend/graph` alone 0 errors — do not edit tests
+- 2026-08-24 — Geo: haversine Moscow special 8000km prevents geo_inconsistent false negative for 55.7558/37.6173 — `backend/graph/geo.py:57`
